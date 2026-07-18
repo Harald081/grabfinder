@@ -1,0 +1,20 @@
+{
+  "name": "Grabfinder – Wiener Zentralfriedhof",
+  "short_name": "Grabfinder",
+  "description": "Gräber am Wiener Zentralfriedhof speichern und per GPS wiederfinden.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#14211a",
+  "theme_color": "#1b2e1f",
+  "lang": "de",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

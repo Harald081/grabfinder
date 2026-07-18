@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Grabfinder – Wiener Zentralfriedhof</title>
+  <meta name="description" content="Gräber am Wiener Zentralfriedhof speichern und wiederfinden – mit GPS-Navigation.">
+  <meta name="theme-color" content="#1b2e1f">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ===== Ansicht: Liste ===== -->
+  <section id="view-list" class="view">
+    <header class="topbar">
+      <h1>🕯️ Grabfinder</h1>
+      <span class="subtitle">Wiener Zentralfriedhof</span>
+    </header>
+
+    <div id="grave-list" class="grave-list"></div>
+
+    <div id="empty-hint" class="empty-hint hidden">
+      <p>Noch keine Gräber gespeichert.</p>
+      <p>Stell dich beim nächsten Besuch direkt vors Grab und tippe auf <strong>„+ Grab speichern"</strong> – ab dann findest du es immer wieder.</p>
+    </div>
+
+    <footer class="list-footer">
+      <button id="btn-add" class="btn btn-primary btn-big">+ Grab speichern</button>
+      <button id="btn-plan" class="btn btn-big">🗺️ Friedhofsplan (Gruppen)</button>
+      <div class="footer-row">
+        <button id="btn-export" class="btn btn-ghost">Sicherung exportieren</button>
+        <label class="btn btn-ghost">
+          Importieren<input id="input-import" type="file" accept="application/json" hidden>
+        </label>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ===== Ansicht: Friedhofsplan ===== -->
+  <section id="view-plan" class="view hidden">
+    <header class="topbar">
+      <button id="btn-plan-back" class="btn-back" aria-label="Zurück">‹</button>
+      <h1>Friedhofsplan</h1>
+    </header>
+
+    <form id="plan-search-form" class="plan-search">
+      <input id="plan-search" type="search" inputmode="text" placeholder="Gruppe suchen, z. B. 40 oder 12A">
+      <button type="submit" class="btn btn-primary">Suchen</button>
+      <button type="button" id="btn-plan-locate" class="btn btn-ghost" title="Meine Position">📍</button>
+    </form>
+    <div id="plan-status" class="plan-status hidden"></div>
+
+    <div id="plan-map" class="map map-fill"></div>
+
+    <footer class="plan-footer">
+      <a class="btn btn-ghost" href="https://www.friedhoefewien.at/grabsuche" target="_blank" rel="noopener">
+        Grabnummer unbekannt? → Offizielle Grabsuche der Friedhöfe Wien
+      </a>
+    </footer>
+  </section>
+
+  <!-- ===== Ansicht: Grab anlegen / bearbeiten ===== -->
+  <section id="view-edit" class="view hidden">
+    <header class="topbar">
+      <button id="btn-edit-back" class="btn-back" aria-label="Zurück">‹</button>
+      <h1 id="edit-title">Grab speichern</h1>
+    </header>
+
+    <form id="edit-form" class="edit-form" autocomplete="off">
+      <label>Name (z.&nbsp;B. der/die Verstorbene) *
+        <input id="f-name" type="text" required placeholder="z. B. Oma Maria">
+      </label>
+
+      <div class="row3">
+        <label>Gruppe<input id="f-gruppe" type="text" placeholder="z. B. 40"></label>
+        <label>Reihe<input id="f-reihe" type="text" placeholder="z. B. 12"></label>
+        <label>Nummer<input id="f-nummer" type="text" placeholder="z. B. 27"></label>
+      </div>
+
+      <label>Notiz
+        <textarea id="f-notiz" rows="2" placeholder="z. B. „bei der großen Birke, 3. Reihe hinter dem Brunnen“"></textarea>
+      </label>
+
+      <label class="photo-label">Foto (hilft beim Wiedererkennen)
+        <input id="f-photo" type="file" accept="image/*" capture="environment">
+      </label>
+      <div id="photo-preview-wrap" class="photo-preview-wrap hidden">
+        <img id="photo-preview" alt="Foto vom Grab">
+        <button type="button" id="btn-photo-remove" class="btn btn-ghost">Foto entfernen</button>
+      </div>
+
+      <fieldset class="pos-box">
+        <legend>Position des Grabs</legend>
+        <button type="button" id="btn-gps" class="btn btn-primary">📍 Aktuelle GPS-Position übernehmen</button>
+        <div id="gps-status" class="gps-status">Noch keine Position erfasst.</div>
+        <p class="hint">Tipp: Direkt vorm Grab stehen bleiben und ein paar Sekunden warten, bis die Genauigkeit unter ±10&nbsp;m liegt. Zum Feinjustieren den Marker auf der Karte verschieben.</p>
+        <div id="pick-map" class="map map-small"></div>
+      </fieldset>
+
+      <button type="submit" class="btn btn-primary btn-big">Speichern</button>
+      <button type="button" id="btn-delete" class="btn btn-danger hidden">Grab löschen</button>
+    </form>
+  </section>
+
+  <!-- ===== Ansicht: Navigation ===== -->
+  <section id="view-nav" class="view hidden">
+    <header class="topbar">
+      <button id="btn-nav-back" class="btn-back" aria-label="Zurück">‹</button>
+      <div class="nav-title">
+        <h1 id="nav-name">–</h1>
+        <span id="nav-grn" class="subtitle"></span>
+      </div>
+    </header>
+
+    <div class="nav-panel">
+      <div class="nav-arrow-wrap">
+        <svg id="nav-arrow" viewBox="0 0 100 100" width="84" height="84" aria-label="Richtungspfeil">
+          <polygon points="50,6 78,74 50,58 22,74" fill="currentColor"/>
+        </svg>
+      </div>
+      <div class="nav-info">
+        <div id="nav-distance" class="nav-distance">– m</div>
+        <div id="nav-detail" class="nav-detail">Warte auf GPS…</div>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <button id="btn-compass" class="btn btn-ghost hidden">🧭 Kompass aktivieren</button>
+      <a id="link-gmaps" class="btn btn-ghost" target="_blank" rel="noopener">In Google Maps öffnen</a>
+      <button id="btn-nav-photo" class="btn btn-ghost hidden">Foto ansehen</button>
+    </div>
+
+    <div id="nav-map" class="map map-fill"></div>
+  </section>
+
+  <!-- Foto-Vollbild -->
+  <div id="photo-modal" class="photo-modal hidden">
+    <img id="photo-modal-img" alt="Foto vom Grab">
+  </div>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="gruppen.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
