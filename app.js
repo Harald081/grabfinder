@@ -544,9 +544,13 @@ function setPlanStatus(msg) {
   planStatus.classList.toggle('hidden', !msg);
 }
 
+const WIEN_CENTER = [48.2082, 16.3738];
+
 function initPlanMap() {
   if (planMap) return;
-  planMap = L.map('plan-map').setView(FRIEDHOF_CENTER, 15);
+  // Mit bekannter Position dorthin, sonst Übersicht über ganz Wien
+  const start = lastKnownPos ? [lastKnownPos.lat, lastKnownPos.lon] : WIEN_CENTER;
+  planMap = L.map('plan-map').setView(start, lastKnownPos ? 15 : 12);
   L.tileLayer(TILE_URL, { attribution: TILE_ATTRIB, maxZoom: 19 }).addTo(planMap);
   Gruppen.attach(planMap, setPlanStatus);
 }
@@ -589,6 +593,16 @@ document.getElementById('btn-plan-locate').addEventListener('click', () => {
   }, () => setPlanStatus('Position konnte nicht ermittelt werden.'),
   { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 });
 });
+
+// ---------- Burger-Menü ----------
+
+const menuPanel = document.getElementById('menu-panel');
+document.getElementById('btn-menu').addEventListener('click', e => {
+  e.stopPropagation();
+  menuPanel.classList.toggle('hidden');
+});
+// Jeder Klick außerhalb des Burger-Knopfs (auch auf einen Menüpunkt) schließt das Menü
+document.addEventListener('click', () => menuPanel.classList.add('hidden'));
 
 // ---------- Sicherung (Export / Import) ----------
 

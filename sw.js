@@ -2,7 +2,7 @@
  * und cached besuchte Kartenkacheln. */
 'use strict';
 
-const SHELL_CACHE = 'grabfinder-shell-v2';
+const SHELL_CACHE = 'grabfinder-shell-v3';
 const TILE_CACHE = 'grabfinder-tiles-v1';
 const TILE_LIMIT = 400;
 

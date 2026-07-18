@@ -1,7 +1,7 @@
 {
-  "name": "Grabfinder – Wiener Zentralfriedhof",
+  "name": "Grabfinder – Friedhöfe Wien",
   "short_name": "Grabfinder",
-  "description": "Gräber am Wiener Zentralfriedhof speichern und per GPS wiederfinden.",
+  "description": "Gräber auf Wiener Friedhöfen speichern und per GPS wiederfinden.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

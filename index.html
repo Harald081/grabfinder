@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Grabfinder – Wiener Zentralfriedhof</title>
-  <meta name="description" content="Gräber am Wiener Zentralfriedhof speichern und wiederfinden – mit GPS-Navigation.">
+  <title>Grabfinder – Friedhöfe Wien</title>
+  <meta name="description" content="Gräber auf Wiener Friedhöfen speichern und wiederfinden – mit GPS-Navigation.">
   <meta name="theme-color" content="#1b2e1f">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -20,7 +20,14 @@
   <section id="view-list" class="view">
     <header class="topbar">
       <h1>🕯️ Grabfinder</h1>
-      <span class="subtitle">Wiener Zentralfriedhof</span>
+      <span class="subtitle">Friedhöfe Wien</span>
+      <button id="btn-menu" class="btn-menu" aria-label="Menü">☰</button>
+      <div id="menu-panel" class="menu-panel hidden">
+        <button id="btn-export" class="menu-item">💾 Sicherung exportieren</button>
+        <label class="menu-item">
+          📂 Sicherung importieren<input id="input-import" type="file" accept="application/json" hidden>
+        </label>
+      </div>
     </header>
 
     <div id="grave-list" class="grave-list"></div>
@@ -33,12 +40,6 @@
     <footer class="list-footer">
       <button id="btn-add" class="btn btn-primary btn-big">+ Grab speichern</button>
       <button id="btn-plan" class="btn btn-big">🗺️ Friedhofsplan (Gruppen)</button>
-      <div class="footer-row">
-        <button id="btn-export" class="btn btn-ghost">Sicherung exportieren</button>
-        <label class="btn btn-ghost">
-          Importieren<input id="input-import" type="file" accept="application/json" hidden>
-        </label>
-      </div>
     </footer>
   </section>
 
@@ -50,7 +51,7 @@
     </header>
 
     <form id="plan-search-form" class="plan-search">
-      <input id="plan-search" type="search" inputmode="text" placeholder="Gruppe suchen, z. B. 40 oder 12A">
+      <input id="plan-search" type="search" inputmode="text" placeholder="Gruppe (z. B. 40) oder Friedhof suchen">
       <button type="submit" class="btn btn-primary">Suchen</button>
       <button type="button" id="btn-plan-locate" class="btn btn-ghost" title="Meine Position">📍</button>
     </form>

@@ -1,36 +1,44 @@
-/* Gruppenplan des Wiener Zentralfriedhofs
+/* Friedhofsplan für alle Wiener Friedhöfe
  *
- * Lädt die Umrisse der Grab-Gruppen einmalig von OpenStreetMap (Overpass API),
- * cached sie in localStorage und zeichnet sie als Overlay (Polygone + Labels)
- * auf die Leaflet-Karten. Labels werden erst ab Zoomstufe 16 eingeblendet.
+ * Lädt einmalig von OpenStreetMap (Overpass API):
+ *  - die Umrisse aller Friedhöfe in Wien (mit Namen)
+ *  - alle erfassten Grab-Gruppen (am Zentralfriedhof vollständig,
+ *    bei kleineren Friedhöfen je nach Datenlage)
+ * cached alles in localStorage und zeichnet es als Overlay auf die
+ * Leaflet-Karten. Gruppen-Labels erscheinen ab Zoomstufe 16,
+ * Friedhofs-Namen bei niedrigeren Zoomstufen.
  */
 'use strict';
 
 const Gruppen = (() => {
-  const CACHE_KEY = 'zf-gruppen-v1';
+  const CACHE_KEY = 'zf-gruppen-v2';
   const CACHE_MAX_AGE = 1000 * 60 * 60 * 24 * 180; // ein halbes Jahr
-  // Bounding-Box um den Zentralfriedhof (Süd, West, Nord, Ost)
-  const BBOX = '48.137,16.416,48.163,16.463';
+  // Bounding-Box um ganz Wien (Süd, West, Nord, Ost)
+  const BBOX = '48.11,16.18,48.33,16.58';
   const ENDPOINTS = [
     'https://overpass-api.de/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter',
   ];
   const QUERY =
-    `[out:json][timeout:90];` +
+    `[out:json][timeout:120];` +
     `(` +
     `way["cemetery"="sector"](${BBOX});` +
     `relation["cemetery"="sector"](${BBOX});` +
-    `way["name"~"^Gruppe ",i](${BBOX});` +
+    `way["name"~"^Gruppe ",i]["landuse"!~"."]["building"!~"."](${BBOX});` +
+    `way["landuse"="cemetery"]["name"](${BBOX});` +
+    `relation["landuse"="cemetery"]["name"](${BBOX});` +
     `);` +
     `out tags geom;`;
 
   const POLY_STYLE = { color: '#3f7a4c', weight: 1.5, opacity: 0.8, fillColor: '#7fc98a', fillOpacity: 0.06 };
   const HILITE_STYLE = { color: '#e0b34c', weight: 3, opacity: 1, fillColor: '#e0b34c', fillOpacity: 0.18 };
-  const LABEL_MIN_ZOOM = 16;
+  const CEM_STYLE = { color: '#5a8a68', weight: 2, opacity: 0.6, dashArray: '4 6', fillColor: '#5a8a68', fillOpacity: 0.04 };
+  const LABEL_MIN_ZOOM = 16;      // ab hier: Gruppen-Nummern
+  const CEM_LABEL_MIN_ZOOM = 12;  // ab hier: Friedhofs-Namen (bis LABEL_MIN_ZOOM)
 
-  let sectors = null;   // [{label, name, ring: [[lat,lon],...], center: [lat,lon]}]
+  let sectors = null;   // [{kind:'gruppe'|'friedhof', label, name, ring: [[lat,lon],...], center}]
   let loadPromise = null;
-  const attached = [];  // [{map, polyGroup, labelGroup, polys: [{sector, poly}]}]
+  const attached = [];  // [{map, polyGroup, labelGroup, cemLabelGroup, polys: [{sector, poly}]}]
 
   const round5 = x => Math.round(x * 1e5) / 1e5;
   const normalize = s => String(s).toLowerCase().replace(/gruppe/g, '').replace(/[\s.]+/g, '');
@@ -57,7 +65,8 @@ const Gruppen = (() => {
     const seen = new Set();
     for (const el of osm.elements || []) {
       const tags = el.tags || {};
-      const label = shortLabel(tags);
+      const isFriedhof = tags.landuse === 'cemetery';
+      const label = isFriedhof ? (tags.name || '').trim() : shortLabel(tags);
       if (!label) continue;
 
       let rings = [];
@@ -69,6 +78,7 @@ const Gruppen = (() => {
           .map(m => m.geometry);
       }
 
+      let first = true;
       for (const geom of rings) {
         const ring = geom.map(p => [round5(p.lat), round5(p.lon)]);
         if (ring.length < 3) continue;
@@ -77,11 +87,15 @@ const Gruppen = (() => {
         if (seen.has(key)) continue;
         seen.add(key);
         out.push({
+          kind: isFriedhof ? 'friedhof' : 'gruppe',
           label,
-          name: tags.name || ('Gruppe ' + label),
+          name: isFriedhof ? label : (tags.name || ('Gruppe ' + label)),
+          // Bei mehrteiligen Friedhöfen nur den ersten Teil beschriften
+          labeled: !isFriedhof || first,
           ring,
           center: ringCenter(ring),
         });
+        first = false;
       }
     }
     return out;
@@ -128,9 +142,9 @@ const Gruppen = (() => {
     return loadPromise;
   }
 
-  function labelIcon(text) {
+  function labelIcon(text, cls) {
     return L.divIcon({
-      className: 'gruppe-label',
+      className: cls,
       html: '<div>' + text.replace(/[<>&]/g, '') + '</div>',
       iconSize: [0, 0],
     });
@@ -139,30 +153,41 @@ const Gruppen = (() => {
   function buildFor(map, secs) {
     if (attached.some(a => a.map === map)) return;
     const polyGroup = L.layerGroup();
-    const labelGroup = L.layerGroup();
+    const labelGroup = L.layerGroup();     // Gruppen-Nummern
+    const cemLabelGroup = L.layerGroup();  // Friedhofs-Namen
     const polys = [];
 
     for (const sector of secs) {
-      const poly = L.polygon(sector.ring, POLY_STYLE)
+      const isFriedhof = sector.kind === 'friedhof';
+      const poly = L.polygon(sector.ring, isFriedhof ? CEM_STYLE : POLY_STYLE)
         .bindTooltip(sector.name, { sticky: true });
       poly.addTo(polyGroup);
       polys.push({ sector, poly });
-      L.marker(sector.center, { icon: labelIcon(sector.label), interactive: false })
-        .addTo(labelGroup);
+      if (isFriedhof) {
+        if (sector.labeled) {
+          L.marker(sector.center, { icon: labelIcon(sector.label, 'friedhof-label'), interactive: false })
+            .addTo(cemLabelGroup);
+        }
+      } else {
+        L.marker(sector.center, { icon: labelIcon(sector.label, 'gruppe-label'), interactive: false })
+          .addTo(labelGroup);
+      }
     }
 
     polyGroup.addTo(map);
     const syncLabels = () => {
-      if (map.getZoom() >= LABEL_MIN_ZOOM) {
-        if (!map.hasLayer(labelGroup)) labelGroup.addTo(map);
-      } else if (map.hasLayer(labelGroup)) {
-        map.removeLayer(labelGroup);
-      }
+      const z = map.getZoom();
+      const showGruppen = z >= LABEL_MIN_ZOOM;
+      const showFriedhoefe = z >= CEM_LABEL_MIN_ZOOM && z < LABEL_MIN_ZOOM;
+      if (showGruppen) { if (!map.hasLayer(labelGroup)) labelGroup.addTo(map); }
+      else if (map.hasLayer(labelGroup)) map.removeLayer(labelGroup);
+      if (showFriedhoefe) { if (!map.hasLayer(cemLabelGroup)) cemLabelGroup.addTo(map); }
+      else if (map.hasLayer(cemLabelGroup)) map.removeLayer(cemLabelGroup);
     };
     map.on('zoomend', syncLabels);
     syncLabels();
 
-    attached.push({ map, polyGroup, labelGroup, polys });
+    attached.push({ map, polyGroup, labelGroup, cemLabelGroup, polys });
   }
 
   /* Overlay auf eine Karte legen (lädt die Daten beim ersten Mal). */
@@ -177,21 +202,35 @@ const Gruppen = (() => {
       });
   }
 
-  /* Gruppe suchen und auf der Karte hervorheben. Gibt den Namen zurück oder null. */
+  /* Gruppe oder Friedhof suchen und auf der Karte hervorheben.
+   * Gibt den gefundenen Namen zurück oder null. */
   function focus(map, query) {
     const entry = attached.find(a => a.map === map);
     const nq = normalize(query);
     if (!entry || !nq) return null;
 
-    let matches = entry.polys.filter(p => normalize(p.sector.label) === nq);
-    if (!matches.length) matches = entry.polys.filter(p => normalize(p.sector.label).startsWith(nq));
+    const gruppen = entry.polys.filter(p => p.sector.kind === 'gruppe');
+    let matches = gruppen.filter(p => normalize(p.sector.label) === nq);
+    if (!matches.length) matches = gruppen.filter(p => normalize(p.sector.label).startsWith(nq));
+    if (!matches.length) {
+      // Kein Gruppen-Treffer -> Friedhöfe nach Namen durchsuchen
+      const cems = entry.polys.filter(p => p.sector.kind === 'friedhof');
+      const ql = String(query).trim().toLowerCase();
+      let cemMatch = cems.filter(p => p.sector.name.toLowerCase().includes(ql));
+      if (cemMatch.length) {
+        // Alle Teile desselben Friedhofs gemeinsam einrahmen
+        const name = cemMatch[0].sector.name;
+        matches = cems.filter(p => p.sector.name === name);
+      }
+    }
     if (!matches.length) return null;
 
     const bounds = L.featureGroup(matches.map(m => m.poly)).getBounds();
     map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
     for (const m of matches) {
+      const restore = m.sector.kind === 'friedhof' ? CEM_STYLE : POLY_STYLE;
       m.poly.setStyle(HILITE_STYLE);
-      setTimeout(() => m.poly.setStyle(POLY_STYLE), 4000);
+      setTimeout(() => m.poly.setStyle(restore), 4000);
     }
     return matches[0].sector.name;
   }

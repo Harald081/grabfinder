@@ -1,7 +1,8 @@
-# 🕯️ Grabfinder – Wiener Zentralfriedhof
+# 🕯️ Grabfinder – Friedhöfe Wien
 
 Nie wieder ewig ein Grab suchen: Diese App speichert die genaue GPS-Position
-eines Grabs und führt dich beim nächsten Besuch direkt hin.
+eines Grabs und führt dich beim nächsten Besuch direkt hin. Funktioniert auf
+allen Wiener Friedhöfen (Grab speichern und Navigation sogar überall).
 
 ## Was die App kann
 
@@ -11,13 +12,13 @@ eines Grabs und führt dich beim nächsten Besuch direkt hin.
 - **Navigation:** Live-Karte (OpenStreetMap) mit Distanzanzeige und
   Richtungspfeil (Kompass), der dich zum Grab führt. Als Fallback lässt sich das
   Ziel auch in Google Maps öffnen.
-- **Friedhofsplan mit Gruppen:** Alle Grab-Gruppen des Zentralfriedhofs als
-  Overlay auf der Karte (Umrisse + Nummern, Daten von OpenStreetMap, werden beim
-  ersten Öffnen einmalig geladen und dann lokal gecacht). Mit Gruppen-Suche:
-  „40" oder „12A" eingeben → die Karte springt hin. Einzelne Grabnummern gibt es
-  in keiner offenen Datenquelle – dafür ist die offizielle
-  [Grabsuche der Friedhöfe Wien](https://www.friedhoefewien.at/grabsuche) verlinkt
-  (dort Name eingeben → Gruppe/Reihe/Nummer herausfinden → in der App suchen).
+- **Friedhofsplan für ganz Wien:** Alle Wiener Friedhöfe mit Umrissen und Namen
+  sowie alle in OpenStreetMap erfassten Grab-Gruppen (am Zentralfriedhof
+  vollständig) als Overlay auf der Karte – einmalig geladen, dann lokal gecacht.
+  Suche nach Gruppen („40", „12A") oder Friedhofs-Namen („Simmering").
+  Einzelne Grabnummern gibt es in keiner offenen Datenquelle – dafür ist die
+  offizielle [Grabsuche der Friedhöfe Wien](https://www.friedhoefewien.at/grabsuche)
+  verlinkt (dort Name eingeben → Gruppe/Reihe/Nummer herausfinden → in der App suchen).
 - **Offline-tauglich:** Als PWA installierbar („Zum Home-Bildschirm hinzufügen");
   App-Dateien und besuchte Kartenausschnitte werden gecacht.
 - **Privat:** Alle Daten bleiben lokal am Gerät (localStorage). Über
@@ -34,13 +35,17 @@ eines Grabs und führt dich beim nächsten Besuch direkt hin.
 
 ## Veröffentlichen (GitHub Pages)
 
-Die App wird bei jedem Push auf `main` automatisch per GitHub Actions
-veröffentlicht: **https://harald081.github.io/grabfinder/**
+GPS funktioniert im Browser nur über **HTTPS** – am einfachsten via GitHub Pages:
+
+1. In den Repository-Einstellungen: **Settings → Pages → Source: „GitHub Actions"**.
+2. Diesen Branch nach `main` mergen (oder den Workflow „Deploy Grabfinder"
+   manuell starten).
+3. Die App ist dann unter `https://<benutzername>.github.io/<repo>/` erreichbar.
 
 ## Technik
 
 Bewusst ohne Build-Tools: reines HTML/CSS/JavaScript, [Leaflet](https://leafletjs.com)
 (lokal eingebettet, kein CDN nötig) für die Karte, OpenStreetMap-Kacheln,
 Service Worker für Offline-Betrieb.
-Die Dateien lassen sich auch auf jeden beliebigen HTTPS-Webspace legen –
+Einfach den Ordner `friedhof-app/` auf einen beliebigen HTTPS-Webspace legen –
 mehr braucht es nicht.

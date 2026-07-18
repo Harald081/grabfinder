@@ -56,6 +56,46 @@ html, body {
   flex: 0 0 auto;
 }
 
+/* ===== Burger-Menü ===== */
+.btn-menu {
+  margin-left: auto;
+  background: var(--panel-2);
+  color: var(--text);
+  border: none;
+  border-radius: 10px;
+  font-size: 1.3rem;
+  line-height: 1;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+}
+.topbar { position: relative; }
+.menu-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 12px;
+  background: var(--panel-2);
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .45);
+  display: flex;
+  flex-direction: column;
+  min-width: 230px;
+  overflow: hidden;
+  z-index: 1500;
+}
+.menu-item {
+  display: block;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: .95rem;
+  text-align: left;
+  padding: 14px 18px;
+  cursor: pointer;
+}
+.menu-item + .menu-item { border-top: 1px solid rgba(255, 255, 255, .07); }
+.menu-item:active { background: var(--accent-dark); }
+
 /* ===== Buttons ===== */
 .btn {
   display: inline-block;
@@ -257,6 +297,17 @@ html, body {
   color: #235c31;
   font-weight: 700;
   font-size: 13px;
+  white-space: nowrap;
+  text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 4px #fff;
+}
+
+/* Friedhofs-Namen auf der Karte (niedrigere Zoomstufen) */
+.friedhof-label { background: none; border: none; }
+.friedhof-label div {
+  transform: translate(-50%, -50%);
+  color: #1e4a2a;
+  font-weight: 600;
+  font-size: 12px;
   white-space: nowrap;
   text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 4px #fff;
 }
