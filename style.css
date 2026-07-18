@@ -117,6 +117,39 @@ html, body {
 .btn-danger { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
 .btn-big { width: 100%; padding: 16px; font-size: 1.1rem; }
 
+/* ===== Chips (Sortierung, Ebenen-Schalter) ===== */
+.chip {
+  background: #ffffff;
+  border: 1.5px solid #cccccc;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: .85rem;
+  padding: 7px 14px;
+  cursor: pointer;
+}
+.chip.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #ffffff;
+  font-weight: 600;
+}
+.sort-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px 0;
+  font-size: .85rem;
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+.layer-toggles {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 10px;
+  background: var(--panel);
+  flex: 0 0 auto;
+}
+
 /* ===== Liste ===== */
 .grave-list {
   flex: 1 1 auto;
@@ -322,6 +355,32 @@ html, body {
   font-size: 12px;
   white-space: nowrap;
   text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 4px #fff;
+}
+
+/* Promi-Gräber auf der Karte */
+.promi-pin { background: none; border: none; }
+.promi-pin div {
+  transform: translate(-50%, -50%);
+  font-size: 15px;
+  filter: grayscale(1);
+  text-shadow: 0 0 3px #fff;
+}
+.promi-popup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 160px;
+  font-size: .95rem;
+}
+.promi-popup a { color: #111111; }
+.promi-popup button {
+  background: #111111;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: .9rem;
+  cursor: pointer;
 }
 
 /* ===== Foto-Modal ===== */

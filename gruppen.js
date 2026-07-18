@@ -174,8 +174,13 @@ const Gruppen = (() => {
       }
     }
 
-    polyGroup.addTo(map);
-    const syncLabels = () => {
+    const entry = { map, polyGroup, labelGroup, cemLabelGroup, polys, visible: true };
+    entry.sync = () => {
+      if (!entry.visible) {
+        [polyGroup, labelGroup, cemLabelGroup].forEach(g => { if (map.hasLayer(g)) map.removeLayer(g); });
+        return;
+      }
+      if (!map.hasLayer(polyGroup)) polyGroup.addTo(map);
       const z = map.getZoom();
       const showGruppen = z >= LABEL_MIN_ZOOM;
       const showFriedhoefe = z >= CEM_LABEL_MIN_ZOOM && z < LABEL_MIN_ZOOM;
@@ -184,10 +189,17 @@ const Gruppen = (() => {
       if (showFriedhoefe) { if (!map.hasLayer(cemLabelGroup)) cemLabelGroup.addTo(map); }
       else if (map.hasLayer(cemLabelGroup)) map.removeLayer(cemLabelGroup);
     };
-    map.on('zoomend', syncLabels);
-    syncLabels();
+    map.on('zoomend', entry.sync);
+    entry.sync();
 
-    attached.push({ map, polyGroup, labelGroup, cemLabelGroup, polys });
+    attached.push(entry);
+  }
+
+  function setVisible(map, visible) {
+    const entry = attached.find(a => a.map === map);
+    if (!entry) return;
+    entry.visible = visible;
+    entry.sync();
   }
 
   /* Overlay auf eine Karte legen (lädt die Daten beim ersten Mal). */
@@ -237,5 +249,5 @@ const Gruppen = (() => {
 
   function isLoaded() { return !!sectors; }
 
-  return { attach, focus, isLoaded };
+  return { attach, focus, setVisible, isLoaded };
 })();

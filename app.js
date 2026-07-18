@@ -88,11 +88,23 @@ function graveSubtitle(g) {
   return parts.join(' · ');
 }
 
+let sortMode = localStorage.getItem('zf-sort') || 'name';
+
 function renderList() {
   listEl.innerHTML = '';
   emptyHint.classList.toggle('hidden', graves.length > 0);
+  document.getElementById('sort-row').classList.toggle('hidden', graves.length < 2);
+  document.getElementById('sort-name').classList.toggle('active', sortMode === 'name');
+  document.getElementById('sort-dist').classList.toggle('active', sortMode === 'dist');
 
-  const sorted = [...graves].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  const sorted = [...graves];
+  if (sortMode === 'dist' && lastKnownPos) {
+    sorted.sort((a, b) =>
+      distanceM(lastKnownPos.lat, lastKnownPos.lon, a.lat, a.lon) -
+      distanceM(lastKnownPos.lat, lastKnownPos.lon, b.lat, b.lon));
+  } else {
+    sorted.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  }
   for (const g of sorted) {
     const card = document.createElement('div');
     card.className = 'grave-card';
@@ -128,6 +140,15 @@ function renderList() {
     listEl.appendChild(card);
   }
 }
+
+function setSortMode(mode) {
+  sortMode = mode;
+  localStorage.setItem('zf-sort', mode);
+  if (mode === 'dist' && !lastKnownPos) refreshListDistances();
+  renderList();
+}
+document.getElementById('sort-name').addEventListener('click', () => setSortMode('name'));
+document.getElementById('sort-dist').addEventListener('click', () => setSortMode('dist'));
 
 // Einmalig still die Position holen, um Entfernungen in der Liste anzuzeigen
 function refreshListDistances() {
@@ -467,7 +488,13 @@ btnCompass.addEventListener('click', () => {
 });
 
 function openNav(id) {
-  navGrave = graves.find(g => g.id === id);
+  const g = graves.find(x => x.id === id);
+  if (g) openNavObj(g);
+}
+
+/* Navigation zu einem beliebigen Ziel (gespeichertes Grab oder Promi-Grab) */
+function openNavObj(g) {
+  navGrave = g;
   if (!navGrave || navGrave.lat == null) return;
 
   navName.textContent = navGrave.name;
@@ -524,6 +551,23 @@ function closeNav() {
 
 document.getElementById('btn-nav-back').addEventListener('click', closeNav);
 
+// Grab-Position teilen (z. B. per WhatsApp); Fallback: in Zwischenablage kopieren
+document.getElementById('btn-share').addEventListener('click', async () => {
+  if (!navGrave) return;
+  const url = `https://www.google.com/maps/search/?api=1&query=${navGrave.lat},${navGrave.lon}`;
+  const text = ['🕯️ ' + navGrave.name, graveSubtitle(navGrave), url].filter(Boolean).join('\n');
+  if (navigator.share) {
+    navigator.share({ title: navGrave.name, text }).catch(() => {});
+  } else {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert('Link in die Zwischenablage kopiert!');
+    } catch {
+      prompt('Zum Kopieren:', url);
+    }
+  }
+});
+
 // Foto-Vollbild
 const photoModal = document.getElementById('photo-modal');
 btnNavPhoto.addEventListener('click', () => {
@@ -553,7 +597,20 @@ function initPlanMap() {
   planMap = L.map('plan-map').setView(start, lastKnownPos ? 15 : 12);
   L.tileLayer(TILE_URL, { attribution: TILE_ATTRIB, maxZoom: 19 }).addTo(planMap);
   Gruppen.attach(planMap, setPlanStatus);
+  Promis.attach(planMap, setPlanStatus, poi => {
+    openNavObj({ id: 'promi', name: poi.name, lat: poi.lat, lon: poi.lon, notiz: 'Promi-Grab' });
+  });
 }
+
+// Ebenen-Schalter
+document.getElementById('tgl-gruppen').addEventListener('click', e => {
+  const on = e.currentTarget.classList.toggle('active');
+  Gruppen.setVisible(planMap, on);
+});
+document.getElementById('tgl-promis').addEventListener('click', e => {
+  const on = e.currentTarget.classList.toggle('active');
+  Promis.setVisible(planMap, on);
+});
 
 function openPlan() {
   showView('plan');
@@ -564,16 +621,34 @@ function openPlan() {
 document.getElementById('btn-plan').addEventListener('click', openPlan);
 document.getElementById('btn-plan-back').addEventListener('click', () => showView('list'));
 
+let coordMarker = null;
+
 document.getElementById('plan-search-form').addEventListener('submit', e => {
   e.preventDefault();
   const q = planSearchInput.value.trim();
   if (!q) return;
-  if (!Gruppen.isLoaded()) {
-    setPlanStatus('Gruppenplan lädt noch – bitte kurz warten.');
+
+  // 1) Koordinaten? (z. B. „48.1528, 16.4425“)
+  const cm = /^(-?\d{1,2}[.,]\d+)[\s;,]+(-?\d{1,3}[.,]\d+)$/.exec(q);
+  if (cm) {
+    const lat = parseFloat(cm[1].replace(',', '.'));
+    const lon = parseFloat(cm[2].replace(',', '.'));
+    if (coordMarker) coordMarker.remove();
+    coordMarker = L.marker([lat, lon], { icon: graveIcon }).addTo(planMap)
+      .bindPopup(`${lat.toFixed(5)}, ${lon.toFixed(5)}`).openPopup();
+    planMap.setView([lat, lon], 18);
+    setPlanStatus('Koordinaten auf der Karte markiert.');
+    planSearchInput.blur();
     return;
   }
-  const found = Gruppen.focus(planMap, q);
-  setPlanStatus(found ? found + ' – auf der Karte markiert' : `Gruppe „${q}“ nicht gefunden.`);
+
+  if (!Gruppen.isLoaded()) {
+    setPlanStatus('Plan lädt noch – bitte kurz warten.');
+    return;
+  }
+  // 2) Gruppe oder Friedhof, 3) Prominentengrab
+  const found = Gruppen.focus(planMap, q) || Promis.focus(planMap, q);
+  setPlanStatus(found ? found + ' – auf der Karte markiert' : `„${q}“ nicht gefunden.`);
   planSearchInput.blur();
 });
 

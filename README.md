@@ -19,6 +19,11 @@ allen Wiener Friedhöfen (Grab speichern und Navigation sogar überall).
   Einzelne Grabnummern gibt es in keiner offenen Datenquelle – dafür ist die
   offizielle [Grabsuche der Friedhöfe Wien](https://www.friedhoefewien.at/grabsuche)
   verlinkt (dort Name eingeben → Gruppe/Reihe/Nummer herausfinden → in der App suchen).
+- **⭐ Prominentengräber:** Alle in OpenStreetMap einzeln erfassten Gräber
+  (Beethoven, Falco & Co) als zuschaltbare Ebene – mit Namenssuche,
+  Wikipedia-Link und „Hinführen"-Navigation.
+- **Komfort:** Grabliste sortierbar (A–Z oder nach Entfernung), Grab-Position
+  teilen (WhatsApp & Co), Suche auch nach Koordinaten.
 - **Offline-tauglich:** Als PWA installierbar („Zum Home-Bildschirm hinzufügen");
   App-Dateien und besuchte Kartenausschnitte werden gecacht.
 - **Privat:** Alle Daten bleiben lokal am Gerät (localStorage). Über
