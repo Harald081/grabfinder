@@ -378,6 +378,34 @@ document.getElementById('btn-photo-remove').addEventListener('click', () => {
 });
 
 document.getElementById('btn-gps').addEventListener('click', startGpsCapture);
+
+// Position aus der eingegebenen Gruppe ableiten (Marker in die Gruppen-Mitte)
+document.getElementById('btn-gruppe-pos').addEventListener('click', () => {
+  const q = fGruppe.value.trim();
+  if (!q) {
+    alert('Bitte zuerst oben die Gruppe eintragen (z. B. 40).');
+    fGruppe.focus();
+    return;
+  }
+  if (!Gruppen.isLoaded()) {
+    gpsStatus.textContent = 'Friedhofsdaten laden noch – bitte kurz warten und nochmal tippen.';
+    gpsStatus.className = 'gps-status warn';
+    return;
+  }
+  // Bei gleicher Gruppennummer auf mehreren Friedhöfen: die dem aktuellen
+  // Kartenausschnitt nächstgelegene nehmen
+  const c = pickMap.getCenter();
+  const sector = Gruppen.findSector(q, [c.lat, c.lng]);
+  if (!sector) {
+    gpsStatus.textContent = `Gruppe „${q}“ nicht im Plan gefunden – Marker bitte per Karte oder GPS setzen.`;
+    gpsStatus.className = 'gps-status warn';
+    return;
+  }
+  setEditPos(sector.center[0], sector.center[1], null, sector.name);
+  pickMap.fitBounds(L.polygon(sector.ring).getBounds(), { padding: [20, 20], maxZoom: 18 });
+  gpsStatus.textContent = `${sector.name}: Marker in die Gruppen-Mitte gesetzt – auf der Karte zum Grab verschieben.`;
+  gpsStatus.className = 'gps-status ok';
+});
 document.getElementById('btn-edit-back').addEventListener('click', closeEdit);
 document.getElementById('btn-add').addEventListener('click', () => openEdit(null));
 

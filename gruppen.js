@@ -249,5 +249,26 @@ const Gruppen = (() => {
 
   function isLoaded() { return !!sectors; }
 
-  return { attach, focus, setVisible, isLoaded };
+  /* Gruppe anhand der Nummer in den Daten suchen (unabhängig von einer Karte).
+   * ref = [lat, lon]: Bei gleichnamigen Gruppen auf mehreren Friedhöfen
+   * gewinnt die dem Referenzpunkt nächstgelegene. */
+  function findSector(query, ref) {
+    if (!sectors) return null;
+    const nq = normalize(query);
+    if (!nq) return null;
+    let hits = sectors.filter(s => s.kind === 'gruppe' && normalize(s.label) === nq);
+    if (!hits.length) hits = sectors.filter(s => s.kind === 'gruppe' && normalize(s.label).startsWith(nq));
+    if (!hits.length) return null;
+    let best = hits[0];
+    if (ref) {
+      let bestDist = Infinity;
+      for (const h of hits) {
+        const d = (h.center[0] - ref[0]) ** 2 + (h.center[1] - ref[1]) ** 2;
+        if (d < bestDist) { bestDist = d; best = h; }
+      }
+    }
+    return best;
+  }
+
+  return { attach, focus, setVisible, isLoaded, findSector };
 })();
