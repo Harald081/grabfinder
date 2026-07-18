@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <rect width="128" height="128" rx="24" fill="#1b2e1f"/>
+  <rect width="128" height="128" rx="24" fill="#111111"/>
   <!-- Kerze -->
-  <rect x="52" y="58" width="24" height="44" rx="6" fill="#e8e3d5"/>
-  <rect x="61" y="48" width="6" height="12" rx="2" fill="#c9c2ae"/>
+  <rect x="52" y="58" width="24" height="44" rx="6" fill="#ffffff"/>
+  <rect x="61" y="48" width="6" height="12" rx="2" fill="#bbbbbb"/>
   <!-- Flamme -->
-  <path d="M64 26c7 8 11 13 11 19a11 11 0 0 1-22 0c0-6 4-11 11-19z" fill="#f0a942"/>
-  <path d="M64 34c3.5 4 5.5 7 5.5 10a5.5 5.5 0 0 1-11 0c0-3 2-6 5.5-10z" fill="#f7d97b"/>
+  <path d="M64 26c7 8 11 13 11 19a11 11 0 0 1-22 0c0-6 4-11 11-19z" fill="#e8e8e8"/>
+  <path d="M64 34c3.5 4 5.5 7 5.5 10a5.5 5.5 0 0 1-11 0c0-3 2-6 5.5-10z" fill="#888888"/>
   <!-- Navigationspfeil -->
-  <path d="M97 76 79 118l3-18-18-3z" fill="#7fc98a"/>
+  <path d="M97 76 79 118l3-18-18-3z" fill="#ffffff"/>
 </svg>

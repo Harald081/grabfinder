@@ -407,7 +407,7 @@ function onNavPosition(p) {
 
   if (!userMarker) {
     userMarker = L.marker([lat, lon], { icon: userIcon }).addTo(navMap);
-    accCircle = L.circle([lat, lon], { radius: accuracy, weight: 1, color: '#4c8dd6', fillOpacity: 0.1 }).addTo(navMap);
+    accCircle = L.circle([lat, lon], { radius: accuracy, weight: 1, color: '#555555', fillOpacity: 0.1 }).addTo(navMap);
   } else {
     userMarker.setLatLng([lat, lon]);
     accCircle.setLatLng([lat, lon]).setRadius(accuracy);
@@ -488,7 +488,7 @@ function openNav(id) {
   graveMarker = L.marker([navGrave.lat, navGrave.lon], { icon: graveIcon }).addTo(navMap)
     .bindPopup(navGrave.name);
   routeLine = L.polyline([[navGrave.lat, navGrave.lon], [navGrave.lat, navGrave.lon]],
-    { color: '#7fc98a', weight: 3, dashArray: '6 8' }).addTo(navMap);
+    { color: '#111111', weight: 3, dashArray: '6 8' }).addTo(navMap);
 
   // Karte braucht nach dem Einblenden ein Resize
   setTimeout(() => {

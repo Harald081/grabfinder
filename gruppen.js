@@ -30,9 +30,9 @@ const Gruppen = (() => {
     `);` +
     `out tags geom;`;
 
-  const POLY_STYLE = { color: '#3f7a4c', weight: 1.5, opacity: 0.8, fillColor: '#7fc98a', fillOpacity: 0.06 };
-  const HILITE_STYLE = { color: '#e0b34c', weight: 3, opacity: 1, fillColor: '#e0b34c', fillOpacity: 0.18 };
-  const CEM_STYLE = { color: '#5a8a68', weight: 2, opacity: 0.6, dashArray: '4 6', fillColor: '#5a8a68', fillOpacity: 0.04 };
+  const POLY_STYLE = { color: '#444444', weight: 1.5, opacity: 0.8, fillColor: '#999999', fillOpacity: 0.07 };
+  const HILITE_STYLE = { color: '#000000', weight: 3.5, opacity: 1, fillColor: '#000000', fillOpacity: 0.22 };
+  const CEM_STYLE = { color: '#666666', weight: 2, opacity: 0.6, dashArray: '4 6', fillColor: '#666666', fillOpacity: 0.04 };
   const LABEL_MIN_ZOOM = 16;      // ab hier: Gruppen-Nummern
   const CEM_LABEL_MIN_ZOOM = 12;  // ab hier: Friedhofs-Namen (bis LABEL_MIN_ZOOM)
 

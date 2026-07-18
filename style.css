@@ -1,12 +1,11 @@
 :root {
-  --bg: #14211a;
-  --panel: #1b2e1f;
-  --panel-2: #24392a;
-  --text: #eef3ee;
-  --muted: #a9bfae;
-  --accent: #7fc98a;
-  --accent-dark: #3f7a4c;
-  --danger: #c96a5f;
+  --bg: #ffffff;
+  --panel: #f4f4f4;
+  --panel-2: #e6e6e6;
+  --ink: #111111;
+  --text: #111111;
+  --muted: #6b6b6b;
+  --line: #dddddd;
 }
 
 * { box-sizing: border-box; }
@@ -30,23 +29,25 @@ html, body {
   margin: 0 auto;
 }
 
-/* ===== Kopfzeile ===== */
+/* ===== Kopfzeile (schwarz) ===== */
 .topbar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 14px 16px 10px;
-  background: var(--panel);
+  background: var(--ink);
+  color: #ffffff;
   flex: 0 0 auto;
 }
 .topbar h1 { font-size: 1.2rem; margin: 0; }
-.subtitle { color: var(--muted); font-size: .85rem; }
+.subtitle { color: #b5b5b5; font-size: .85rem; }
 .nav-title { display: flex; flex-direction: column; min-width: 0; }
 .nav-title h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .btn-back {
-  background: var(--panel-2);
-  color: var(--text);
+  background: #2c2c2c;
+  color: #ffffff;
   border: none;
   border-radius: 10px;
   font-size: 1.5rem;
@@ -59,8 +60,8 @@ html, body {
 /* ===== Burger-Menü ===== */
 .btn-menu {
   margin-left: auto;
-  background: var(--panel-2);
-  color: var(--text);
+  background: #2c2c2c;
+  color: #ffffff;
   border: none;
   border-radius: 10px;
   font-size: 1.3rem;
@@ -69,14 +70,15 @@ html, body {
   height: 40px;
   flex: 0 0 auto;
 }
-.topbar { position: relative; }
 .menu-panel {
   position: absolute;
   top: calc(100% + 4px);
   right: 12px;
-  background: var(--panel-2);
+  background: #ffffff;
+  color: var(--text);
+  border: 1px solid var(--line);
   border-radius: 12px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, .45);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .18);
   display: flex;
   flex-direction: column;
   min-width: 230px;
@@ -93,8 +95,8 @@ html, body {
   padding: 14px 18px;
   cursor: pointer;
 }
-.menu-item + .menu-item { border-top: 1px solid rgba(255, 255, 255, .07); }
-.menu-item:active { background: var(--accent-dark); }
+.menu-item + .menu-item { border-top: 1px solid #eeeeee; }
+.menu-item:active { background: var(--panel-2); }
 
 /* ===== Buttons ===== */
 .btn {
@@ -109,10 +111,10 @@ html, body {
   background: var(--panel-2);
   cursor: pointer;
 }
-.btn-primary { background: var(--accent-dark); font-weight: 600; }
-.btn-primary:active { background: var(--accent); color: #10240f; }
-.btn-ghost { background: var(--panel-2); color: var(--muted); font-size: .9rem; }
-.btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+.btn-primary { background: var(--ink); color: #ffffff; font-weight: 600; }
+.btn-primary:active { background: #444444; }
+.btn-ghost { background: var(--panel); color: var(--muted); font-size: .9rem; }
+.btn-danger { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
 .btn-big { width: 100%; padding: 16px; font-size: 1.1rem; }
 
 /* ===== Liste ===== */
@@ -128,21 +130,24 @@ html, body {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: var(--panel);
+  background: #ffffff;
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .06);
 }
 .grave-thumb {
   width: 56px;
   height: 56px;
   border-radius: 10px;
   object-fit: cover;
-  background: var(--panel-2);
+  background: var(--panel);
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.6rem;
+  filter: grayscale(1);
 }
 .grave-meta { flex: 1 1 auto; min-width: 0; }
 .grave-meta .g-name {
@@ -162,7 +167,7 @@ html, body {
   width: 44px;
   height: 44px;
 }
-.grave-actions .go { background: var(--accent-dark); }
+.grave-actions .go { background: var(--ink); color: #ffffff; }
 
 .empty-hint {
   flex: 1 1 auto;
@@ -179,8 +184,8 @@ html, body {
   flex-direction: column;
   gap: 8px;
   background: var(--panel);
+  border-top: 1px solid var(--line);
 }
-.footer-row { display: flex; gap: 8px; justify-content: center; }
 
 /* ===== Formular ===== */
 .edit-form {
@@ -200,14 +205,16 @@ html, body {
 }
 .edit-form input[type="text"],
 .edit-form textarea {
-  background: var(--panel);
-  border: 1px solid var(--panel-2);
+  background: #ffffff;
+  border: 1.5px solid #cccccc;
   border-radius: 10px;
   color: var(--text);
   padding: 12px;
   font-size: 1rem;
   width: 100%;
 }
+.edit-form input:focus,
+.edit-form textarea:focus { outline: none; border-color: var(--ink); }
 .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 
 .photo-label input { color: var(--muted); }
@@ -215,7 +222,7 @@ html, body {
 .photo-preview-wrap img { max-width: 100%; border-radius: 12px; }
 
 .pos-box {
-  border: 1px solid var(--panel-2);
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 12px;
   display: flex;
@@ -223,13 +230,13 @@ html, body {
   gap: 10px;
 }
 .pos-box legend { color: var(--muted); font-size: .9rem; padding: 0 6px; }
-.gps-status { font-size: .95rem; }
-.gps-status.ok { color: var(--accent); }
-.gps-status.warn { color: #e0b34c; }
+.gps-status { font-size: .95rem; color: var(--muted); }
+.gps-status.ok { color: var(--ink); font-weight: 600; }
+.gps-status.warn { color: #555555; }
 .hint { color: var(--muted); font-size: .8rem; margin: 0; line-height: 1.4; }
 
 /* ===== Karten ===== */
-.map { border-radius: 12px; background: #0d1712; }
+.map { border-radius: 12px; background: #e9e9e9; }
 .map-small { height: 240px; }
 .map-fill { flex: 1 1 auto; border-radius: 0; }
 
@@ -239,19 +246,21 @@ html, body {
   align-items: center;
   gap: 18px;
   padding: 14px 20px;
-  background: var(--panel);
+  background: var(--ink);
+  color: #ffffff;
   flex: 0 0 auto;
 }
-.nav-arrow-wrap { color: var(--accent); flex: 0 0 auto; }
+.nav-arrow-wrap { color: #ffffff; flex: 0 0 auto; }
 #nav-arrow { transition: transform .25s ease-out; }
 .nav-distance { font-size: 2rem; font-weight: 700; }
-.nav-detail { color: var(--muted); font-size: .9rem; }
+.nav-detail { color: #b5b5b5; font-size: .9rem; }
 
 .nav-actions {
   display: flex;
   gap: 8px;
   padding: 8px 16px;
   background: var(--panel);
+  border-bottom: 1px solid var(--line);
   flex: 0 0 auto;
   flex-wrap: wrap;
 }
@@ -267,34 +276,37 @@ html, body {
 .plan-search input {
   flex: 1 1 auto;
   min-width: 0;
-  background: var(--bg);
-  border: 1px solid var(--panel-2);
+  background: #ffffff;
+  border: 1.5px solid #cccccc;
   border-radius: 10px;
   color: var(--text);
   padding: 12px;
   font-size: 1rem;
 }
+.plan-search input:focus { outline: none; border-color: var(--ink); }
 .plan-search .btn { flex: 0 0 auto; }
 .plan-status {
   padding: 8px 16px;
   background: var(--panel);
-  color: var(--accent);
+  color: var(--ink);
+  font-weight: 500;
   font-size: .9rem;
   flex: 0 0 auto;
 }
 .plan-footer {
   padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
   background: var(--panel);
+  border-top: 1px solid var(--line);
   flex: 0 0 auto;
   display: flex;
 }
 .plan-footer .btn { flex: 1 1 auto; font-size: .85rem; }
 
-/* Gruppen-Labels auf der Karte */
+/* Gruppen-Nummern auf der Karte */
 .gruppe-label { background: none; border: none; }
 .gruppe-label div {
   transform: translate(-50%, -50%);
-  color: #235c31;
+  color: #111111;
   font-weight: 700;
   font-size: 13px;
   white-space: nowrap;
@@ -305,7 +317,7 @@ html, body {
 .friedhof-label { background: none; border: none; }
 .friedhof-label div {
   transform: translate(-50%, -50%);
-  color: #1e4a2a;
+  color: #333333;
   font-weight: 600;
   font-size: 12px;
   white-space: nowrap;
@@ -316,7 +328,7 @@ html, body {
 .photo-modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, .9);
+  background: rgba(0, 0, 0, .92);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -324,14 +336,14 @@ html, body {
 }
 .photo-modal img { max-width: 95vw; max-height: 95vh; border-radius: 8px; }
 
-/* Leaflet-Elemente an dunkles Design anpassen */
+/* Karten-Marker */
 .leaflet-container { font: inherit; }
 .user-dot {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #4c8dd6;
-  border: 3px solid #fff;
+  background: #111111;
+  border: 3px solid #ffffff;
   box-shadow: 0 0 8px rgba(0, 0, 0, .5);
 }
-.grave-pin { font-size: 26px; line-height: 1; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+.grave-pin { font-size: 26px; line-height: 1; text-shadow: 0 1px 3px rgba(0,0,0,.6); filter: grayscale(1); }
