@@ -1,8 +1,12 @@
 /* Service Worker für Grabfinder – macht die App offline nutzbar
- * und cached besuchte Kartenkacheln. */
+ * und cached besuchte Kartenkacheln.
+ *
+ * App-Dateien und Daten: „Netz zuerst“ – Updates sind sofort sichtbar,
+ * ohne Netz kommt die zuletzt gespeicherte Version aus dem Cache.
+ * Kartenkacheln: „Cache zuerst“ (ändern sich praktisch nie). */
 'use strict';
 
-const SHELL_CACHE = 'grabfinder-shell-v6';
+const SHELL_CACHE = 'grabfinder-shell-v7';
 const TILE_CACHE = 'grabfinder-tiles-v1';
 const TILE_LIMIT = 400;
 
@@ -21,7 +25,10 @@ const SHELL_FILES = [
 
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(SHELL_CACHE).then(c => c.addAll(SHELL_FILES)).then(() => self.skipWaiting())
+    caches.open(SHELL_CACHE)
+      // cache: 'reload' umgeht den HTTP-Cache – sonst landen u. U. alte Dateien im neuen Cache
+      .then(c => c.addAll(SHELL_FILES.map(u => new Request(u, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -62,19 +69,23 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // App-Dateien: Cache zuerst, sonst Netz (und nachträglich cachen)
+  // Nur eigene Dateien behandeln (Overpass, Wikipedia usw. direkt ans Netz)
+  if (url.origin !== location.origin) return;
+
+  // App-Dateien und Daten: Netz zuerst, bei Fehler Cache
   e.respondWith((async () => {
-    const cached = await caches.match(e.request);
-    if (cached) return cached;
+    const cache = await caches.open(SHELL_CACHE);
     try {
-      const res = await fetch(e.request);
-      if (res.ok && url.origin === location.origin) {
-        const cache = await caches.open(SHELL_CACHE);
-        cache.put(e.request, res.clone());
-      }
+      // Navigations-Requests dürfen nicht mit eigenen Optionen neu gebaut werden
+      const req = e.request.mode === 'navigate'
+        ? e.request
+        : new Request(e.request.url, { cache: 'no-cache' });
+      const res = await fetch(req);
+      if (res.ok) cache.put(e.request, res.clone());
       return res;
     } catch {
-      return Response.error();
+      const cached = await cache.match(e.request, { ignoreSearch: true });
+      return cached || Response.error();
     }
   })());
 });

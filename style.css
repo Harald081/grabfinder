@@ -326,6 +326,35 @@ html, body {
   font-size: .9rem;
   flex: 0 0 auto;
 }
+.plan-result {
+  position: relative;
+  margin: 0 12px 10px;
+  padding: 10px 14px 12px;
+  background: #ffffff;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.pr-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  color: var(--muted);
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+}
+.pr-title { font-weight: 700; font-size: 1.05rem; padding-right: 30px; }
+.pr-sub { color: var(--muted); font-size: .82rem; line-height: 1.35; }
+.pr-actions { display: flex; gap: 8px; }
+.pr-actions .btn { flex: 1 1 0; padding: 10px 8px; font-size: .95rem; }
+.promi-where { color: #666666; font-size: .85rem; }
 .plan-footer {
   padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
   background: var(--panel);

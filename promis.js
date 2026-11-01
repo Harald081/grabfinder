@@ -67,16 +67,27 @@ const Promis = (() => {
     if (pois) return Promise.resolve(pois);
     if (loadPromise) return loadPromise;
 
-    try {
-      const c = JSON.parse(localStorage.getItem(CACHE_KEY));
-      if (c && c.ts && Date.now() - c.ts < CACHE_MAX_AGE && Array.isArray(c.pois) && c.pois.length) {
-        pois = c.pois;
-        return Promise.resolve(pois);
-      }
-    } catch { /* Cache kaputt -> neu laden */ }
-
-    if (statusCb) statusCb('Lade Prominentengräber (einmalig)…');
     loadPromise = (async () => {
+      // 1) Mitgelieferte Daten (per GitHub-Workflow aus OpenStreetMap erzeugt)
+      try {
+        const res = await fetch('data/promis.json');
+        if (res.ok) {
+          const d = await res.json();
+          if (Array.isArray(d.pois) && d.pois.length) { pois = d.pois; return pois; }
+        }
+      } catch { /* weiter mit Fallbacks */ }
+
+      // 2) Zuletzt live geladene Daten
+      try {
+        const c = JSON.parse(localStorage.getItem(CACHE_KEY));
+        if (c && c.ts && Date.now() - c.ts < CACHE_MAX_AGE && Array.isArray(c.pois) && c.pois.length) {
+          pois = c.pois;
+          return pois;
+        }
+      } catch { /* Cache kaputt -> neu laden */ }
+
+      // 3) Live von der Overpass API
+      if (statusCb) statusCb('Lade Prominentengräber (einmalig)…');
       let lastErr = null;
       for (const endpoint of ENDPOINTS) {
         try {
@@ -115,6 +126,13 @@ const Promis = (() => {
     const strong = document.createElement('strong');
     strong.textContent = poi.name;
     div.appendChild(strong);
+    const where = [poi.gruppe ? 'Gruppe ' + poi.gruppe : '', poi.friedhof || ''].filter(Boolean).join(' · ');
+    if (where) {
+      const small = document.createElement('span');
+      small.className = 'promi-where';
+      small.textContent = where;
+      div.appendChild(small);
+    }
     if (poi.wiki) {
       const a = document.createElement('a');
       a.href = poi.wiki;
@@ -192,5 +210,5 @@ const Promis = (() => {
 
   function isLoaded() { return !!pois; }
 
-  return { attach, focus, setVisible, isLoaded };
+  return { attach, load, focus, setVisible, isLoaded };
 })();

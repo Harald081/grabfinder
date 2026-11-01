@@ -88,6 +88,43 @@ function graveSubtitle(g) {
   return parts.join(' · ');
 }
 
+/* Zerlegt Grab-Angaben wie „40/12/27“, „Gruppe 40 Reihe 12 Nr. 27“,
+ * „Gr. 32 C, R. 3, Nr. 8“ oder „Hietzing 5/3/12“.
+ * Ergebnis: {gruppe, reihe, nummer, friedhof}; leere gruppe = keine Grab-Angabe. */
+function parseGrabAngabe(text) {
+  const out = { gruppe: '', reihe: '', nummer: '', friedhof: '' };
+  // „32 C“ -> „32C“ (außer g/n/r – das sind Abkürzungen für Gruppe/Nr./Reihe)
+  let s = ' ' + String(text).toLowerCase()
+    .replace(/(\d)\s+([a-fh-mo-qs-z])(?=$|[\s,;/])/g, '$1$2') + ' ';
+  const take = (re, key) => {
+    const m = re.exec(s);
+    if (m) {
+      out[key] = m[1].toUpperCase();
+      s = s.slice(0, m.index) + '  ' + s.slice(m.index + m[0].length);
+    }
+  };
+  const V = '([0-9]{1,3}[a-z]?)';
+  const END = '(?=[\\s,;/-])';
+  take(new RegExp(`[\\s,;/](?:grabnummer|grabnr|nummer|grab|nr|n)\\.?\\s*:?\\s*${V}${END}`), 'nummer');
+  take(new RegExp(`[\\s,;/](?:reihe|r)\\.?\\s*:?\\s*${V}${END}`), 'reihe');
+  take(new RegExp(`[\\s,;/](?:gruppe|gr|g)\\.?\\s*:?\\s*${V}${END}`), 'gruppe');
+  take(new RegExp(`[\\s,;/]gruppe\\s*:?\\s*([a-z]{1,3})${END}`), 'gruppe');
+
+  const STOP = new Set(['friedhof', 'wiener', 'wien', 'grab', 'gruppe', 'reihe', 'nummer', 'nr',
+    'der', 'die', 'das', 'am', 'im', 'auf', 'und']);
+  const words = [];
+  for (const t of s.split(/[\s,;/-]+/).filter(Boolean)) {
+    if (/^[0-9]{1,3}[a-z]?$/.test(t)) {
+      const slot = ['gruppe', 'reihe', 'nummer'].find(k => !out[k]);
+      if (slot) out[slot] = t.toUpperCase();
+    } else if (/^[a-zäöüß.]{3,}$/.test(t) && !STOP.has(t.replace(/\.$/, ''))) {
+      words.push(t.replace(/\.$/, ''));
+    }
+  }
+  out.friedhof = words.join(' ');
+  return out;
+}
+
 let sortMode = localStorage.getItem('zf-sort') || 'name';
 
 function renderList() {
@@ -117,7 +154,8 @@ function renderList() {
     meta.className = 'grave-meta';
     const sub = [graveSubtitle(g)];
     if (lastKnownPos && g.lat != null) {
-      sub.push(fmtDistance(distanceM(lastKnownPos.lat, lastKnownPos.lon, g.lat, g.lon)) + ' entfernt');
+      sub.push((g.posQuelle === 'gruppe' ? '≈ ' : '') +
+        fmtDistance(distanceM(lastKnownPos.lat, lastKnownPos.lon, g.lat, g.lon)) + ' entfernt');
     }
     meta.innerHTML = `<div class="g-name"></div><div class="g-sub"></div>`;
     meta.querySelector('.g-name').textContent = g.name;
@@ -176,6 +214,7 @@ const btnDelete = document.getElementById('btn-delete');
 let editId = null;          // null = neues Grab
 let editPhoto = null;       // Daten-URL
 let editPos = null;         // {lat, lon, acc}
+let editPosSource = null;   // 'gps' | 'manuell' | 'gruppe' (ungefähr: Gruppen-Mitte)
 let pickMap = null;
 let pickMarker = null;
 const pickIcon = L.divIcon({
@@ -191,17 +230,19 @@ function initPickMap() {
   if (pickMap) return;
   pickMap = L.map('pick-map', { zoomControl: true }).setView(FRIEDHOF_CENTER, 15);
   L.tileLayer(TILE_URL, { attribution: TILE_ATTRIB, maxZoom: 19 }).addTo(pickMap);
-  pickMap.on('click', e => setEditPos(e.latlng.lat, e.latlng.lng, null, 'Position manuell gesetzt'));
+  pickMap.on('click', e => setEditPos(e.latlng.lat, e.latlng.lng, null, 'Position manuell gesetzt', 'manuell'));
   Gruppen.attach(pickMap);
 }
 
-function setEditPos(lat, lon, acc, label) {
+function setEditPos(lat, lon, acc, label, source) {
   editPos = { lat, lon, acc: acc ?? null };
+  if (source) editPosSource = source;
   if (!pickMarker) {
     pickMarker = L.marker([lat, lon], { draggable: true, icon: pickIcon }).addTo(pickMap);
     pickMarker.on('dragend', () => {
       const ll = pickMarker.getLatLng();
       editPos = { lat: ll.lat, lon: ll.lng, acc: null };
+      editPosSource = 'manuell';
       updateGpsStatus('Position manuell verschoben');
     });
   } else {
@@ -252,7 +293,7 @@ function startGpsCapture() {
     // Immer die genaueste Messung behalten
     if (accuracy <= bestAcc) {
       bestAcc = accuracy;
-      setEditPos(latitude, longitude, accuracy, 'GPS-Position erfasst');
+      setEditPos(latitude, longitude, accuracy, 'GPS-Position erfasst', 'gps');
     } else {
       updateGpsStatus('GPS-Position erfasst');
     }
@@ -290,12 +331,15 @@ function showPhotoPreview() {
   if (editPhoto) photoPreview.src = editPhoto;
 }
 
-function openEdit(id) {
+/* id: bestehendes Grab bearbeiten; prefill: neues Grab mit Vorgaben
+ * (z. B. aus der Plan-Suche: {gruppe, reihe, nummer, notiz, lat, lon, posQuelle}) */
+function openEdit(id, prefill) {
   editId = id || null;
-  const g = graves.find(x => x.id === id);
+  const g = graves.find(x => x.id === id) || prefill || null;
+  const existing = !!graves.find(x => x.id === id);
 
-  document.getElementById('edit-title').textContent = g ? 'Grab bearbeiten' : 'Grab speichern';
-  btnDelete.classList.toggle('hidden', !g);
+  document.getElementById('edit-title').textContent = existing ? 'Grab bearbeiten' : 'Grab speichern';
+  btnDelete.classList.toggle('hidden', !existing);
   fName.value = g?.name || '';
   fGruppe.value = g?.gruppe || '';
   fReihe.value = g?.reihe || '';
@@ -304,6 +348,7 @@ function openEdit(id) {
   fPhoto.value = '';
   editPhoto = g?.photo || null;
   editPos = g && g.lat != null ? { lat: g.lat, lon: g.lon, acc: g.acc ?? null } : null;
+  editPosSource = editPos ? (g.posQuelle || 'gps') : null;
   showPhotoPreview();
 
   showView('edit');
@@ -311,7 +356,10 @@ function openEdit(id) {
   // Karte braucht nach dem Einblenden ein Resize
   setTimeout(() => {
     pickMap.invalidateSize();
-    if (editPos) {
+    if (editPos && editPosSource === 'gruppe' && fGruppe.value.trim()) {
+      setEditPos(editPos.lat, editPos.lon, null, '', 'gruppe');
+      applyGruppePos(false);
+    } else if (editPos) {
       setEditPos(editPos.lat, editPos.lon, editPos.acc, 'Gespeicherte Position');
     } else {
       if (pickMarker) { pickMarker.remove(); pickMarker = null; }
@@ -328,10 +376,12 @@ function closeEdit() {
   showView('list');
 }
 
-editForm.addEventListener('submit', e => {
+editForm.addEventListener('submit', async e => {
   e.preventDefault();
+  // Keine Position, aber Gruppe eingetragen -> Gruppen-Mitte nehmen
+  if (!editPos && fGruppe.value.trim()) await applyGruppePos(false);
   if (!editPos) {
-    alert('Bitte zuerst die Position des Grabs erfassen (GPS-Knopf oder auf die Karte tippen).');
+    alert('Bitte die Position des Grabs festlegen: Gruppe eintragen, GPS-Knopf drücken oder auf die Karte tippen.');
     return;
   }
   const data = {
@@ -345,6 +395,7 @@ editForm.addEventListener('submit', e => {
     lat: editPos.lat,
     lon: editPos.lon,
     acc: editPos.acc,
+    posQuelle: editPosSource || 'gps',
     created: graves.find(g => g.id === editId)?.created || Date.now(),
   };
   const idx = graves.findIndex(g => g.id === data.id);
@@ -379,32 +430,61 @@ document.getElementById('btn-photo-remove').addEventListener('click', () => {
 
 document.getElementById('btn-gps').addEventListener('click', startGpsCapture);
 
-// Position aus der eingegebenen Gruppe ableiten (Marker in die Gruppen-Mitte)
-document.getElementById('btn-gruppe-pos').addEventListener('click', () => {
+/* Position aus der eingegebenen Gruppe ableiten (Marker in die Gruppen-Mitte).
+ * Gibt true zurück, wenn eine Position gesetzt wurde. */
+async function applyGruppePos(fromButton) {
+  // Automatisch nie eine genauere Position (GPS / manuell) überschreiben
+  const hasBetterPos = () => !fromButton && editPos && editPosSource !== 'gruppe';
+  if (hasBetterPos()) return false;
   const q = fGruppe.value.trim();
   if (!q) {
-    alert('Bitte zuerst oben die Gruppe eintragen (z. B. 40).');
-    fGruppe.focus();
-    return;
+    if (fromButton) {
+      alert('Bitte zuerst oben die Gruppe eintragen (z. B. 40).');
+      fGruppe.focus();
+    }
+    return false;
   }
   if (!Gruppen.isLoaded()) {
-    gpsStatus.textContent = 'Friedhofsdaten laden noch – bitte kurz warten und nochmal tippen.';
-    gpsStatus.className = 'gps-status warn';
-    return;
+    gpsStatus.textContent = 'Lade Friedhofsplan …';
+    gpsStatus.className = 'gps-status';
   }
-  // Bei gleicher Gruppennummer auf mehreren Friedhöfen: die dem aktuellen
-  // Kartenausschnitt nächstgelegene nehmen
+  try {
+    await Gruppen.load();
+  } catch {
+    if (hasBetterPos()) return false;
+    gpsStatus.textContent = 'Friedhofsplan konnte nicht geladen werden – Position bitte per Karte oder GPS setzen.';
+    gpsStatus.className = 'gps-status warn';
+    return false;
+  }
+  if (hasBetterPos()) return false;  // GPS kam während des Ladens
+  // Gruppe kann es auf mehreren Friedhöfen geben: die beim aktuellen
+  // Kartenausschnitt bevorzugen, sonst den Zentralfriedhof
   const c = pickMap.getCenter();
-  const sector = Gruppen.findSector(q, [c.lat, c.lng]);
-  if (!sector) {
-    gpsStatus.textContent = `Gruppe „${q}“ nicht im Plan gefunden – Marker bitte per Karte oder GPS setzen.`;
+  const hit = Gruppen.findGruppe(q, { ref: [c.lat, c.lng] });
+  if (!hit) {
+    if (!fromButton && editPos) return false;  // vorhandene Position samt Status nicht stören
+    gpsStatus.textContent = `Gruppe „${q}“ ist in den Kartendaten nicht verzeichnet – Position bitte per Karte oder GPS setzen.`;
     gpsStatus.className = 'gps-status warn';
-    return;
+    return false;
   }
-  setEditPos(sector.center[0], sector.center[1], null, sector.name);
-  pickMap.fitBounds(L.polygon(sector.ring).getBounds(), { padding: [20, 20], maxZoom: 18 });
-  gpsStatus.textContent = `${sector.name}: Marker in die Gruppen-Mitte gesetzt – auf der Karte zum Grab verschieben.`;
+  const s = hit.sector;
+  setEditPos(s.center[0], s.center[1], null, '', 'gruppe');
+  const pts = hit.parts.flatMap(p => p.ring || [p.center]);
+  pickMap.fitBounds(L.latLngBounds(pts), { padding: [30, 30], maxZoom: 18 });
+  gpsStatus.textContent = `✓ ${s.name}${s.friedhof ? ' · ' + s.friedhof : ''} – Marker steht in der Gruppen-Mitte ` +
+    '(ungefähr). Zum Grab ziehen oder beim Besuch per GPS genau speichern.';
   gpsStatus.className = 'gps-status ok';
+  return true;
+}
+
+document.getElementById('btn-gruppe-pos').addEventListener('click', () => applyGruppePos(true));
+
+// Automatisch beim Eintippen der Gruppe – solange keine genauere Position da ist
+let gruppeTimer = null;
+fGruppe.addEventListener('input', () => {
+  clearTimeout(gruppeTimer);
+  if (editPos && editPosSource !== 'gruppe') return;
+  gruppeTimer = setTimeout(() => applyGruppePos(false), 600);
 });
 document.getElementById('btn-edit-back').addEventListener('click', closeEdit);
 document.getElementById('btn-add').addEventListener('click', () => openEdit(null));
@@ -463,6 +543,7 @@ function onNavPosition(p) {
   }
 
   const d = distanceM(lat, lon, navGrave.lat, navGrave.lon);
+  const approx = navGrave.posQuelle === 'gruppe';
   currentBearing = bearingDeg(lat, lon, navGrave.lat, navGrave.lon);
 
   routeLine.setLatLngs([[lat, lon], [navGrave.lat, navGrave.lon]]);
@@ -470,12 +551,18 @@ function onNavPosition(p) {
     navMap.fitBounds(routeLine.getBounds(), { padding: [40, 40], maxZoom: 19 });
   }
 
-  navDistance.textContent = fmtDistance(d);
-  if (d <= 8) {
+  navDistance.textContent = (approx ? '≈ ' : '') + fmtDistance(d);
+  if (approx && d <= 40) {
+    // Ziel ist nur die Gruppen-Mitte -> ab hier helfen Reihe/Nummer
+    const rest = [navGrave.reihe && 'Reihe ' + navGrave.reihe, navGrave.nummer && 'Nr. ' + navGrave.nummer]
+      .filter(Boolean).join(', ');
+    navDetail.textContent = `📍 Du bist in ${navGrave.gruppe ? 'Gruppe ' + navGrave.gruppe : 'der Gruppe'}` +
+      (rest ? ` – jetzt ${rest} suchen.` : ' – jetzt nach dem Grab umsehen.');
+  } else if (!approx && d <= 8) {
     navDetail.textContent = '🎯 Du bist da! Schau dich um.';
   } else {
     const dir = heading == null ? ` – Richtung ${cardinal(currentBearing)}` : '';
-    navDetail.textContent = `GPS ±${Math.round(accuracy)} m${dir}`;
+    navDetail.textContent = `GPS ±${Math.round(accuracy)} m${dir}` + (approx ? ' · Ziel: Gruppen-Mitte' : '');
   }
   updateArrow();
 }
@@ -520,9 +607,13 @@ function openNav(id) {
   if (g) openNavObj(g);
 }
 
-/* Navigation zu einem beliebigen Ziel (gespeichertes Grab oder Promi-Grab) */
-function openNavObj(g) {
+let navReturnView = 'list';
+
+/* Navigation zu einem beliebigen Ziel (gespeichertes Grab, Promi-Grab,
+ * Suchergebnis). returnView: Ansicht, zu der „Zurück“ führt. */
+function openNavObj(g, returnView = 'list') {
   navGrave = g;
+  navReturnView = returnView;
   if (!navGrave || navGrave.lat == null) return;
 
   navName.textContent = navGrave.name;
@@ -574,7 +665,8 @@ function closeNav() {
   if (userMarker) { userMarker.remove(); userMarker = null; }
   if (accCircle) { accCircle.remove(); accCircle = null; }
   renderList();
-  showView('list');
+  showView(navReturnView);
+  if (navReturnView === 'plan' && planMap) setTimeout(() => planMap.invalidateSize(), 50);
 }
 
 document.getElementById('btn-nav-back').addEventListener('click', closeNav);
@@ -626,9 +718,67 @@ function initPlanMap() {
   L.tileLayer(TILE_URL, { attribution: TILE_ATTRIB, maxZoom: 19 }).addTo(planMap);
   Gruppen.attach(planMap, setPlanStatus);
   Promis.attach(planMap, setPlanStatus, poi => {
-    openNavObj({ id: 'promi', name: poi.name, lat: poi.lat, lon: poi.lon, notiz: 'Promi-Grab' });
+    openNavObj({
+      id: 'promi', name: poi.name, lat: poi.lat, lon: poi.lon,
+      gruppe: poi.gruppe || '', notiz: ['Promi-Grab', poi.friedhof].filter(Boolean).join(' · '),
+    }, 'plan');
   });
 }
+
+// ----- Ergebnis-Karte der Plan-Suche -----
+
+const planResult = document.getElementById('plan-result');
+let planResultData = null;
+
+function showPlanResult(r) {
+  planResultData = r;
+  planResult.classList.toggle('hidden', !r);
+  if (!r) return;
+  const { angabe, sector, others, exact, variants } = r;
+  const gruppe = sector.label;
+  document.getElementById('pr-title').textContent = [
+    'Gruppe ' + gruppe,
+    angabe.reihe && 'Reihe ' + angabe.reihe,
+    angabe.nummer && 'Nr. ' + angabe.nummer,
+  ].filter(Boolean).join(' · ');
+  const sub = [(sector.friedhof || 'Friedhof unbekannt') + ' · Gruppe markiert.'];
+  if (!exact && variants.length) {
+    sub.unshift(`„${angabe.gruppe}“ gibt es nicht genau so` +
+      (variants.length > 1 ? ` – es gibt ${variants.join(', ')}.` : '.'));
+  }
+  if (angabe.reihe || angabe.nummer) {
+    sub.push('Reihe/Nr. verzeichnet keine öffentliche Karte – vor Ort helfen die Reihen-Schilder.');
+  }
+  if (others.length) {
+    sub.push(`Auch auf: ${others.slice(0, 3).join(', ')}${others.length > 3 ? ' …' : ''} (Friedhof mit eintippen).`);
+  }
+  document.getElementById('pr-sub').textContent = sub.join(' ');
+}
+
+function planResultTarget() {
+  const { angabe, sector } = planResultData;
+  return {
+    name: [sector.friedhof, 'Gruppe ' + sector.label].filter(Boolean).join(' · '),
+    gruppe: sector.label,
+    reihe: angabe.reihe,
+    nummer: angabe.nummer,
+    notiz: sector.friedhof || '',
+    lat: sector.center[0],
+    lon: sector.center[1],
+    posQuelle: 'gruppe',
+  };
+}
+
+document.getElementById('pr-close').addEventListener('click', () => showPlanResult(null));
+document.getElementById('pr-nav').addEventListener('click', () => {
+  if (planResultData) openNavObj({ id: 'suche', ...planResultTarget() }, 'plan');
+});
+document.getElementById('pr-save').addEventListener('click', () => {
+  if (!planResultData) return;
+  const t = planResultTarget();
+  openEdit(null, { ...t, name: '' });
+  setTimeout(() => fName.focus(), 300);
+});
 
 // Ebenen-Schalter
 document.getElementById('tgl-gruppen').addEventListener('click', e => {
@@ -651,10 +801,12 @@ document.getElementById('btn-plan-back').addEventListener('click', () => showVie
 
 let coordMarker = null;
 
-document.getElementById('plan-search-form').addEventListener('submit', e => {
+document.getElementById('plan-search-form').addEventListener('submit', async e => {
   e.preventDefault();
   const q = planSearchInput.value.trim();
   if (!q) return;
+  planSearchInput.blur();
+  showPlanResult(null);
 
   // 1) Koordinaten? (z. B. „48.1528, 16.4425“)
   const cm = /^(-?\d{1,2}[.,]\d+)[\s;,]+(-?\d{1,3}[.,]\d+)$/.exec(q);
@@ -666,18 +818,48 @@ document.getElementById('plan-search-form').addEventListener('submit', e => {
       .bindPopup(`${lat.toFixed(5)}, ${lon.toFixed(5)}`).openPopup();
     planMap.setView([lat, lon], 18);
     setPlanStatus('Koordinaten auf der Karte markiert.');
-    planSearchInput.blur();
     return;
   }
 
-  if (!Gruppen.isLoaded()) {
-    setPlanStatus('Plan lädt noch – bitte kurz warten.');
+  if (!Gruppen.isLoaded()) setPlanStatus('Lade Friedhofsplan …');
+  try {
+    await Gruppen.load(setPlanStatus);
+  } catch {
+    setPlanStatus('Friedhofsplan konnte nicht geladen werden – bitte Internetverbindung prüfen und neu laden.');
     return;
   }
-  // 2) Gruppe oder Friedhof, 3) Prominentengrab
-  const found = Gruppen.focus(planMap, q) || Promis.focus(planMap, q);
-  setPlanStatus(found ? found + ' – auf der Karte markiert' : `„${q}“ nicht gefunden.`);
-  planSearchInput.blur();
+
+  // 2) Grab-Angabe mit Gruppe („40“, „40/12/27“, „Gruppe 40 Reihe 12 Nr. 27“, „Hietzing 5/3/12“)
+  const angabe = parseGrabAngabe(q);
+  if (angabe.gruppe) {
+    // Nur wenn hineingezoomt: Treffer in der Nähe des Kartenausschnitts bevorzugen
+    const c = planMap.getCenter();
+    const ref = planMap.getZoom() >= 14 ? [c.lat, c.lng] : null;
+    const hit = Gruppen.findGruppe(angabe.gruppe, { friedhof: angabe.friedhof, ref });
+    if (hit) {
+      Gruppen.highlight(planMap, hit.parts);
+      setPlanStatus('');
+      showPlanResult({ angabe, ...hit });
+      return;
+    }
+    setPlanStatus(`Gruppe „${angabe.gruppe}“ ist in den Kartendaten` +
+      (angabe.friedhof ? ` für „${angabe.friedhof}“` : '') +
+      ' nicht verzeichnet. Tipp: Friedhof auf der Karte suchen und das Grab per Fingertipp setzen.');
+    return;
+  }
+
+  // 3) Friedhof nach Namen
+  const cem = Gruppen.findFriedhof(q) || (angabe.friedhof && Gruppen.findFriedhof(angabe.friedhof));
+  if (cem) {
+    Gruppen.highlight(planMap, cem);
+    setPlanStatus(cem[0].name + ' – auf der Karte markiert.');
+    return;
+  }
+
+  // 4) Prominentengrab nach Namen
+  try { await Promis.load(); } catch { /* ohne Promi-Daten weiter */ }
+  const promi = Promis.focus(planMap, q);
+  setPlanStatus(promi ? promi + ' – auf der Karte markiert.' : `„${q}“ nicht gefunden – weder als Gruppe, Friedhof noch Name.`);
 });
 
 document.getElementById('btn-plan-locate').addEventListener('click', () => {

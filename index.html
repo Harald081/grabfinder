@@ -57,7 +57,7 @@
     </header>
 
     <form id="plan-search-form" class="plan-search">
-      <input id="plan-search" type="search" inputmode="text" placeholder="Gruppe, Friedhof oder Name (z. B. Falco)">
+      <input id="plan-search" type="search" inputmode="text" placeholder="z. B. 40/12/27, Hietzing 5 oder Falco">
       <button type="submit" class="btn btn-primary">Suchen</button>
       <button type="button" id="btn-plan-locate" class="btn btn-ghost" title="Meine Position">📍</button>
     </form>
@@ -66,6 +66,15 @@
       <button id="tgl-promis" class="chip active">⭐ Promi-Gräber</button>
     </div>
     <div id="plan-status" class="plan-status hidden"></div>
+    <div id="plan-result" class="plan-result hidden">
+      <button type="button" id="pr-close" class="pr-close" aria-label="Schließen">✕</button>
+      <div id="pr-title" class="pr-title"></div>
+      <div id="pr-sub" class="pr-sub"></div>
+      <div class="pr-actions">
+        <button type="button" id="pr-nav" class="btn btn-primary">➤ Hinführen</button>
+        <button type="button" id="pr-save" class="btn">💾 Als Grab speichern</button>
+      </div>
+    </div>
 
     <div id="plan-map" class="map map-fill"></div>
 
@@ -111,7 +120,7 @@
         <button type="button" id="btn-gps" class="btn btn-primary">📍 Aktuelle GPS-Position übernehmen</button>
         <button type="button" id="btn-gruppe-pos" class="btn">🔢 Position aus Gruppe setzen</button>
         <div id="gps-status" class="gps-status">Noch keine Position erfasst.</div>
-        <p class="hint">Zwei Wege: <strong>Vor Ort</strong> per GPS (am genauesten – kurz warten, bis die Genauigkeit unter ±10&nbsp;m liegt). Oder <strong>von zu Hause</strong>: oben die Gruppe eintragen und „Position aus Gruppe setzen" – der Marker landet in der Gruppen-Mitte und lässt sich auf der Karte verschieben (die genaue Reihe/Nummer kennt keine öffentliche Datenquelle).</p>
+        <p class="hint"><strong>Von zu Hause:</strong> einfach oben die Gruppe eintragen – der Marker springt automatisch in die Gruppen-Mitte und lässt sich auf der Karte verschieben (Reihe/Nummer verzeichnet keine öffentliche Karte). <strong>Vor Ort:</strong> GPS-Knopf – am genauesten, kurz warten bis ±10&nbsp;m.</p>
         <div id="pick-map" class="map map-small"></div>
       </fieldset>
 
