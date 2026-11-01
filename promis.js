@@ -210,5 +210,5 @@ const Promis = (() => {
 
   function isLoaded() { return !!pois; }
 
-  return { attach, load, focus, setVisible, isLoaded };
+  return { attach, load, focus, setVisible, isLoaded, version: 8 };
 })();

@@ -3,6 +3,20 @@
  */
 'use strict';
 
+// Passen alle Dateien zusammen? Beim Update kann der Browser kurzzeitig alte
+// und neue Dateien mischen – dann einmal frisch laden statt still zu versagen.
+(() => {
+  const ok = typeof Gruppen === 'object' && typeof Gruppen.findGruppe === 'function' &&
+    typeof Promis === 'object' && Promis.version === 8;
+  try {
+    if (ok) { sessionStorage.removeItem('zf-reload'); return; }
+    if (!sessionStorage.getItem('zf-reload')) {
+      sessionStorage.setItem('zf-reload', '1');
+      location.reload();
+    }
+  } catch { /* sessionStorage gesperrt – weiter mit dem, was da ist */ }
+})();
+
 // Zentrum des Wiener Zentralfriedhofs als Karten-Startpunkt
 const FRIEDHOF_CENTER = [48.1503, 16.4392];
 const STORAGE_KEY = 'zf-graves-v1';
@@ -801,12 +815,21 @@ document.getElementById('btn-plan-back').addEventListener('click', () => showVie
 
 let coordMarker = null;
 
-document.getElementById('plan-search-form').addEventListener('submit', async e => {
+document.getElementById('plan-search-form').addEventListener('submit', e => {
   e.preventDefault();
+  // Nie still scheitern: jeden Fehler sichtbar melden
+  planSearch().catch(err => {
+    setPlanStatus('Bei der Suche ist ein Fehler aufgetreten (' + (err && err.message || err) +
+      '). Bitte die Seite neu laden.');
+  });
+});
+
+async function planSearch() {
   const q = planSearchInput.value.trim();
   if (!q) return;
   planSearchInput.blur();
   showPlanResult(null);
+  setPlanStatus('Suche …');
 
   // 1) Koordinaten? (z. B. „48.1528, 16.4425“)
   const cm = /^(-?\d{1,2}[.,]\d+)[\s;,]+(-?\d{1,3}[.,]\d+)$/.exec(q);
@@ -860,7 +883,7 @@ document.getElementById('plan-search-form').addEventListener('submit', async e =
   try { await Promis.load(); } catch { /* ohne Promi-Daten weiter */ }
   const promi = Promis.focus(planMap, q);
   setPlanStatus(promi ? promi + ' – auf der Karte markiert.' : `„${q}“ nicht gefunden – weder als Gruppe, Friedhof noch Name.`);
-});
+}
 
 document.getElementById('btn-plan-locate').addEventListener('click', () => {
   if (!('geolocation' in navigator)) return;

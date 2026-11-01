@@ -393,5 +393,25 @@ const Gruppen = (() => {
 
   function isLoaded() { return !!sectors; }
 
-  return { attach, load, setVisible, isLoaded, findGruppe, findFriedhof, highlight, normalize };
+  // ---- Kompatibilität mit älterer app.js (falls der Browser beim Update
+  //      kurzzeitig alte und neue Dateien mischt) ----
+
+  /* alt: Gruppe/Friedhof suchen, hervorheben, Namen zurückgeben */
+  function focus(map, query) {
+    const g = findGruppe(query);
+    if (g) { highlight(map, g.parts); return [g.sector.name, g.sector.friedhof].filter(Boolean).join(' · '); }
+    const f = findFriedhof(query);
+    if (f) { highlight(map, f); return f[0].name; }
+    return null;
+  }
+
+  /* alt: Gruppe als Fläche mit Mitte zurückgeben */
+  function findSector(query, ref) {
+    const g = findGruppe(query, { ref });
+    if (!g) return null;
+    const s = g.sector;
+    return { ...s, ring: s.ring || [s.center, s.center, s.center] };
+  }
+
+  return { attach, load, setVisible, isLoaded, findGruppe, findFriedhof, highlight, normalize, focus, findSector };
 })();
