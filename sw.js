@@ -6,7 +6,7 @@
  * Kartenkacheln: „Cache zuerst“ (ändern sich praktisch nie). */
 'use strict';
 
-const SHELL_CACHE = 'grabfinder-shell-v8';
+const SHELL_CACHE = 'grabfinder-shell-v9';
 const TILE_CACHE = 'grabfinder-tiles-v1';
 const TILE_LIMIT = 400;
 

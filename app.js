@@ -7,7 +7,7 @@
 // und neue Dateien mischen – dann einmal frisch laden statt still zu versagen.
 (() => {
   const ok = typeof Gruppen === 'object' && typeof Gruppen.findGruppe === 'function' &&
-    typeof Promis === 'object' && Promis.version === 8;
+    typeof Promis === 'object' && Promis.version === 9;
   try {
     if (ok) { sessionStorage.removeItem('zf-reload'); return; }
     if (!sessionStorage.getItem('zf-reload')) {
@@ -954,5 +954,16 @@ refreshListDistances();
 
 if ('serviceWorker' in navigator &&
     (location.protocol === 'https:' || location.hostname === 'localhost')) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  // Neue Version bereit (neuer Service Worker übernimmt) -> einmal automatisch neu
+  // laden, damit nie eine alte Version weiterläuft. Nicht beim allerersten Besuch.
+  const hadController = !!navigator.serviceWorker.controller;
+  let swReloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || swReloaded) return;
+    swReloaded = true;
+    location.reload();
+  });
+  navigator.serviceWorker.register('sw.js')
+    .then(reg => reg.update())   // bei jedem Start nach Updates fragen
+    .catch(() => {});
 }

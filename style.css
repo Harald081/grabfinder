@@ -97,6 +97,12 @@ html, body {
 }
 .menu-item + .menu-item { border-top: 1px solid #eeeeee; }
 .menu-item:active { background: var(--panel-2); }
+.menu-version {
+  padding: 10px 18px;
+  border-top: 1px solid #eeeeee;
+  color: var(--muted);
+  font-size: .8rem;
+}
 
 /* ===== Buttons ===== */
 .btn {
