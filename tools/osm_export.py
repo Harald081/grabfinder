@@ -120,25 +120,35 @@ def compact(ring):
     return [[round(a, 5), round(b, 5)] for a, b in ring]
 
 
+def normalize(s):
+    """„Gruppe 32 A“, „32a“, „032A“ -> „32a“ (muss zu normalize() in gruppen.js passen)"""
+    s = re.sub(r'gruppe|gr\.', '', str(s).lower())
+    s = re.sub(r'[\s.]+', '', s)
+    return re.sub(r'^0+(?=\d)', '', s)
+
+
 def gruppen_label(tags):
+    """Liefert (Kurz-Label, Suchcodes) – z. B. „Gruppe 82, Tor 9“ -> („82“, [„82“]),
+    „Gruppe 17/47 "MariaHilf"“ -> („17/47“, [„17“, „47“])."""
     name = (tags.get('name') or '').strip()
     m = GRUPPE_RE.match(name)
-    if m:
-        return m.group(1)
-    if tags.get('ref'):
-        return tags['ref'].strip()
-    return name
+    raw = m.group(1) if m else (tags.get('ref') or name).strip()
+    core = re.split(r'[,„“"(\[]', raw, maxsplit=1)[0].strip() or raw
+    codes = [c for c in (normalize(p) for p in re.split(r'\s*(?:/|\+|&|\bund\b)\s*', core)) if c]
+    return core, codes
 
 
 def export_gruppen():
+    # Wichtig: „out geom“ (nicht „out tags geom“) – sonst fehlen bei
+    # Relationen (z. B. Zentralfriedhof) die Mitglieder samt Geometrie.
     q = (f'[out:json][timeout:200];('
          f'way["landuse"="cemetery"]["name"]({BBOX});'
          f'relation["landuse"="cemetery"]["name"]({BBOX});'
          f'way["amenity"="grave_yard"]["name"]({BBOX});'
          f'relation["amenity"="grave_yard"]["name"]({BBOX});'
          f'nwr["cemetery"="sector"]({BBOX});'
-         f'nwr["name"~"^(Gruppe|Gr\\\\.) ",i]["highway"!~"."]({BBOX});'
-         f');out tags geom;')
+         f'nwr["name"~"^(Gruppe|Gr\\\\.) ",i]["highway"!~"."]["public_transport"!~"."]({BBOX});'
+         f');out geom;')
     data = overpass(q)
     seen = set()
     friedhoefe, gruppen = [], []
@@ -151,26 +161,27 @@ def export_gruppen():
         name = (tags.get('name') or '').strip()
         is_gruppe = tags.get('cemetery') == 'sector' or bool(GRUPPE_RE.match(name))
         if is_gruppe:
-            label = gruppen_label(tags)
-            if not label:
+            label, codes = gruppen_label(tags)
+            if not label or not codes:
                 continue
+            base = {'label': label, 'codes': codes, 'name': name or f'Gruppe {label}'}
             rs = rings_of(el)
             if rs:
                 for r in rs:
-                    gruppen.append({'label': label, 'name': name or f'Gruppe {label}',
-                                    'ring': r, 'center': centroid(r)})
+                    gruppen.append({**base, 'ring': r, 'center': centroid(r)})
             elif el['type'] == 'node':
-                gruppen.append({'label': label, 'name': name or f'Gruppe {label}',
-                                'ring': None, 'center': [round(el['lat'], 5), round(el['lon'], 5)]})
+                gruppen.append({**base, 'ring': None,
+                                'center': [round(el['lat'], 5), round(el['lon'], 5)]})
         elif name:
             for i, r in enumerate(rings_of(el)):
                 friedhoefe.append({'name': name, 'ring': r, 'area': area(r), 'first': i == 0})
 
-    # Jede Gruppe ihrem (kleinsten umgebenden) Friedhof zuordnen
+    # Jede Gruppe ihrem Friedhof zuordnen – der GRÖSSTEN umgebenden Fläche, damit
+    # Teilflächen wie „Islamische Gruppen“ nicht den Zentralfriedhof verdrängen
     for g in gruppen:
         best = None
         for f in friedhoefe:
-            if inside(tuple(g['center']), f['ring']) and (best is None or f['area'] < best['area']):
+            if inside(tuple(g['center']), f['ring']) and (best is None or f['area'] > best['area']):
                 best = f
         g['friedhof'] = best['name'] if best else ''
 
@@ -180,8 +191,8 @@ def export_gruppen():
                         'labeled': f['first'], 'ring': compact(f['ring']),
                         'center': centroid(f['ring'])})
     for g in gruppen:
-        sectors.append({'kind': 'gruppe', 'label': g['label'], 'name': g['name'],
-                        'friedhof': g['friedhof'], 'labeled': True,
+        sectors.append({'kind': 'gruppe', 'label': g['label'], 'codes': g['codes'],
+                        'name': g['name'], 'friedhof': g['friedhof'], 'labeled': True,
                         'ring': compact(g['ring']) if g['ring'] else None,
                         'center': g['center']})
     return sectors
@@ -221,7 +232,8 @@ def export_promis(sectors):
             continue
         seen.add(key)
         p = (lat, lon)
-        fh = next((f['name'] for f in friedhoefe if inside(p, [tuple(x) for x in f['ring']])), '')
+        cands = [f for f in friedhoefe if inside(p, [tuple(x) for x in f['ring']])]
+        fh = max(cands, key=lambda f: area([tuple(x) for x in f['ring']]))['name'] if cands else ''
         gr = next((g['label'] for g in gruppen if inside(p, [tuple(x) for x in g['ring']])), '')
         pois.append({'name': name, 'lat': round(lat, 6), 'lon': round(lon, 6),
                      'wiki': wiki_url(tags), 'friedhof': fh, 'gruppe': gr})
@@ -239,7 +251,8 @@ def export_debug():
 
 
 def main():
-    out = sys.argv[1] if len(sys.argv) > 1 else 'data'
+    args = [a for a in sys.argv[1:] if not a.startswith('--')]
+    out = args[0] if args else 'data'
     os.makedirs(out, exist_ok=True)
     ts = int(time.time() * 1000)
 
@@ -259,11 +272,12 @@ def main():
     with open(os.path.join(out, 'promis.json'), 'w', encoding='utf-8') as fh:
         json.dump({'ts': ts, 'pois': pois}, fh, ensure_ascii=False, separators=(',', ':'))
 
-    try:
+    if '--debug' in sys.argv:
+      try:
         print('Debug-Übersicht Zentralfriedhof …')
         with open(os.path.join(out, 'debug-zentral.json'), 'w', encoding='utf-8') as fh:
             json.dump(export_debug(), fh, ensure_ascii=False, indent=0)
-    except SystemExit as e:
+      except SystemExit as e:
         print(f'  übersprungen: {e}', file=sys.stderr)
 
     with open(os.path.join(out, 'meta.json'), 'w', encoding='utf-8') as fh:
